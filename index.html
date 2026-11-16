@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CoWork Loop – Futuro del trabajo</title>
+<title>CoWork Loop Banca – Futuro del trabajo</title>
 <style>
 :root{--panel:#0d1f27e6;--text:#e8f0f3;--muted:#9fb2bc;--accent:#2de2c0;--warm:#ffb300;--line:#27414c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{height:100%;margin:0}
@@ -32,24 +32,24 @@ small{display:block;margin-top:8px;color:var(--muted);font-size:11px}
 <div id="stage"></div>
 <header>
   <h1>CoWork <span>Loop</span></h1>
-  <p>Futuro del trabajo · La IA toma lo repetitivo, las personas conservan lo creativo · Arrastra para rotar</p>
+  <p>Futuro del trabajo · Banca y finanzas: los robots procesan lo rutinario, el analista decide y asesora · Arrastra para rotar</p>
 </header>
 <div id="panel">
   <label><span>Nivel de automatización con IA</span><span id="lv">60%</span></label>
   <input id="slider" type="range" min="0" max="100" value="60">
   <div class="stats">
     <div class="stat"><b id="s1">0</b><span>horas ahorradas / semana</span></div>
-    <div class="stat"><b id="s2">0%</b><span>tiempo en trabajo creativo</span></div>
+    <div class="stat"><b id="s2">0%</b><span>tiempo en casos complejos y clientes</span></div>
     <div class="stat"><b id="s3">0</b><span>índice de bienestar</span></div>
-    <div class="stat"><b id="s4">0</b><span>tareas hechas por robots</span></div>
+    <div class="stat"><b id="s4">0</b><span>documentos procesados por robots</span></div>
   </div>
   <div class="legend">
-    <span><i class="dot" style="background:#90a4ae"></i>Tarea repetitiva</span>
-    <span><i class="dot" style="background:#ffb300"></i>Tarea creativa</span>
-    <span><i class="dot" style="background:#2de2c0"></i>Persona</span>
+    <span><i class="dot" style="background:#90a4ae"></i>Tarea rutinaria (robots)</span>
+    <span><i class="dot" style="background:#ffb300"></i>Tarea de criterio (analista)</span>
+    <span><i class="dot" style="background:#2de2c0"></i>Analista</span>
     <span><i class="dot" style="background:#ff7043"></i>Robots IA</span>
   </div>
-  <small>Modelo ilustrativo del prototipo; las cifras son estimaciones, no datos medidos.</small>
+  <small>Datos simulados; cifras ilustrativas. Las decisiones sensibles (aprobar un crédito, marcar fraude) siempre las toma la persona.</small>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -140,15 +140,22 @@ small{display:block;margin-top:8px;color:var(--muted);font-size:11px}
   var deskLegs=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.9,0.8),mat(0x3e2f2a));deskLegs.position.set(-1.3,0.45,0);
   var screen=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.55,0.05),mat(0x102027,0xffb300,0.9));screen.position.set(-1.6,1.4,-0.2);
   human.add(hBody,hHead,hair,legs,hAL,hAR,desk,deskLegs,screen);scene.add(human);
-  var hl=label('Persona crea','#2de2c0');hl.position.set(4.2,3.2,3);scene.add(hl);
+  var hl=label('Analista decide','#2de2c0');hl.position.set(4.2,3.2,3);scene.add(hl);
 
+  var REP=['Conciliación','Verificar KYC','Facturas','Captura de datos','Reporte diario'],CRE=['Crédito atípico','Análisis de riesgo','Asesorar cliente','Nuevo producto'],tex={};
+  function nameSprite(txt,warm){
+    var key=txt;if(!tex[key]){var c=document.createElement('canvas');c.width=256;c.height=56;var g=c.getContext('2d');
+      g.fillStyle=warm?'rgba(60,40,0,0.85)':'rgba(10,22,28,0.85)';g.fillRect(0,0,256,56);g.strokeStyle=warm?'#ffb300':'#90a4ae';g.lineWidth=3;g.strokeRect(2,2,252,52);
+      g.fillStyle=warm?'#ffd54f':'#cfd8dc';g.font='bold 26px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(txt,128,30);tex[key]=new THREE.CanvasTexture(c);}
+    var s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex[key],transparent:true}));s.scale.set(1.7,0.37,1);return s;}
   var tasks=[],ideas=[],a=0.6,load=0,spawnT=0,robotDone=0,rr=0;
   function spawn(){
     var rep=Math.random()<0.7;
     var m=new THREE.Mesh(rep?new THREE.BoxGeometry(0.5,0.5,0.5):new THREE.IcosahedronGeometry(0.36,0),rep?mat(0x90a4ae,0x455a64,0.4):mat(0xffb300,0xffb300,0.9));
     m.position.set(-7,0.6,0);scene.add(m);
     var toRobot=rep&&Math.random()<a,ri=0;if(toRobot){ri=rr++%robots.length;}
-    tasks.push({m:m,rep:rep,toRobot:toRobot,ri:ri,t:0});
+    var nm=(rep?REP:CRE)[Math.floor(Math.random()*(rep?REP.length:CRE.length))];var sp=nameSprite(nm,!rep);scene.add(sp);
+    tasks.push({m:m,sp:sp,rep:rep,toRobot:toRobot,ri:ri,t:0});
   }
   var P0=new THREE.Vector3(-7,0.6,0),P1=new THREE.Vector3(0,0.6,0);
   function step(dt,time){
@@ -160,9 +167,9 @@ small{display:block;margin-top:8px;color:var(--muted);font-size:11px}
       var k=tasks[i];k.t+=dt*0.22;
       var tg=k.toRobot?new THREE.Vector3(robots[k.ri].position.x-0.6,1.3,robots[k.ri].position.z+0.6):new THREE.Vector3(4.2,1.4,3);
       if(k.t<0.5)k.m.position.lerpVectors(P0,P1,k.t*2);else{k.m.position.lerpVectors(P1,tg,(k.t-0.5)*2);k.m.position.y+=Math.sin((k.t-0.5)*Math.PI*2)*0.5;}
-      k.m.rotation.y+=dt*2.5;k.m.rotation.x+=dt*1.2;
+      k.m.rotation.y+=dt*2.5;k.m.rotation.x+=dt*1.2;k.sp.position.set(k.m.position.x,k.m.position.y+0.8,k.m.position.z);
       if(k.t>=1){
-        scene.remove(k.m);tasks.splice(i,1);
+        scene.remove(k.m);scene.remove(k.sp);tasks.splice(i,1);
         if(k.toRobot){robots[k.ri].userData.work=1;robotDone++;document.getElementById('s4').textContent=robotDone;}
         else if(k.rep){load=Math.min(1,load+0.13);}
         else{var s=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,10),new THREE.MeshBasicMaterial({color:0xfff176}));s.position.set(4.2,2.6,3);scene.add(s);ideas.push({m:s,life:1.6});}
