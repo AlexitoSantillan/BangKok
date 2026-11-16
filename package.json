@@ -1,0 +1,9 @@
+{
+  "name": "coworkloop-banca",
+  "version": "1.0.0",
+  "description": "CoWork Loop: IA que clasifica tareas de back-office bancario (Gemini) - Hackathon IA y Robotica Bangkok 2026",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "express": "^4.19.2" }
+}

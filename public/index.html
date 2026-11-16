@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CoWork Loop – Banca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0e1b2c;--paper:#eef2f7;--card:#fff;--line:#d6dde7;--muted:#5a6b80;--robot:#2b6cff;--human:#0f9d8a;--warn:#e8a317;box-sizing:border-box}
+*,*:before,*:after{box-sizing:inherit}
+html,body{margin:0;min-height:100%}
+body{font-family:Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--paper);color:var(--ink);line-height:1.45}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;background:var(--ink);color:#fff}
+header h1{font-size:20px;margin:0;font-weight:800}
+header p{margin:2px 0 0;font-size:13px;color:#9fb2c8}
+select{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid #3a4d66;background:#14283f;color:#fff}
+main{display:grid;grid-template-columns:340px minmax(0,1fr) 340px;gap:14px;padding:14px 20px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+h2{font-size:15px;margin:0 0 10px;font-weight:800}
+textarea{width:100%;min-height:78px;resize:vertical;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px}
+textarea:focus,button:focus-visible,select:focus-visible{outline:3px solid #7fb0ff;outline-offset:1px}
+button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+.primary{background:var(--robot);color:#fff;width:100%;margin-top:8px}
+.primary:disabled{opacity:.6;cursor:wait}
+.ghost{background:#e6ecf5;color:var(--ink);margin-top:8px;width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{background:#f1f4f9;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:400;color:var(--ink)}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+#stage{position:relative;min-height:460px;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#16394a 0%,#0a161c 75%);border:1px solid var(--line)}
+#stage canvas{display:block;width:100%;height:100%;touch-action:none}
+#stageHint{position:absolute;left:12px;top:10px;color:#9fb2c8;font-size:12px;pointer-events:none}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.m{border:1px solid var(--line);border-radius:10px;padding:8px}
+.m b{display:block;font-size:22px}
+.m span{font-size:11px;color:var(--muted)}
+.bar{height:8px;background:#e6ecf5;border-radius:99px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:0;background:var(--human);transition:width .4s,background .4s}
+#log{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
+#log li{border-top:1px solid var(--line);padding:8px 0;font-size:13px}
+#log li:first-child{border-top:0}
+.badge{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;color:#fff;margin-right:6px}
+.badge.robot{background:var(--robot)}.badge.analyst{background:var(--human)}
+.src{font-size:11px;color:var(--muted);margin-left:4px}
+.why{color:var(--muted);margin-top:2px}
+.col{display:flex;flex-direction:column;gap:14px}
+@media(max-width:1000px){main{grid-template-columns:1fr}#stage{order:-1;min-height:360px}}
+@media(prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>CoWork Loop</h1><p id="sub"></p></div>
+  <select id="lang" aria-label="Language"><option value="es">Español</option><option value="en">English</option></select>
+</header>
+<main>
+  <div class="col">
+    <section>
+      <h2 id="inTitle"></h2>
+      <textarea id="task" maxlength="300"></textarea>
+      <button id="go" class="primary"></button>
+      <button id="batch" class="ghost"></button>
+      <div class="chips" id="chips"></div>
+      <p class="note" id="humanNote"></p>
+    </section>
+  </div>
+  <div id="stage"><div id="stageHint"></div></div>
+  <div class="col">
+    <section>
+      <h2 id="mTitle"></h2>
+      <div class="metrics">
+        <div class="m"><b id="mR">0</b><span id="lR"></span></div>
+        <div class="m"><b id="mA">0</b><span id="lA"></span></div>
+        <div class="m"><b id="mH">0</b><span id="lH"></span></div>
+        <div class="m"><b id="mP">0%</b><span id="lP"></span></div>
+      </div>
+      <div class="bar" aria-hidden="true"><i id="loadBar"></i></div>
+      <span class="note" id="lL"></span>
+    </section>
+    <section>
+      <h2 id="logTitle"></h2>
+      <ul id="log"></ul>
+      <p class="note" id="empty"></p>
+    </section>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+var T={
+ es:{sub:'Futuro del trabajo · Banca y finanzas: la IA decide quién hace cada tarea',inTitle:'Mesa de tareas',ph:'Describe una tarea de back-office (ej.: conciliar cuentas del día)…',go:'Analizar con IA',batch:'Cargar lote de ejemplo',hint:'Arrastra para rotar',humanNote:'Las decisiones sensibles (aprobar créditos, marcar fraude) siempre las toma la persona.',mTitle:'Métricas de la sesión',lR:'tareas hechas por robots',lA:'tareas para el analista',lH:'horas liberadas',lP:'del trabajo automatizado',lL:'Carga del analista',logTitle:'Decisiones de la IA',empty:'Aún no hay tareas. Escribe una o carga el lote de ejemplo.',robot:'Robot',analyst:'Analista',via:{gemini:'Gemini',rules:'reglas'},min:'min',err:'No se pudo analizar la tarea.',wait:'Analizando…',stageRobot:'Robots IA',stageHuman:'Analista decide',
+  samples:['Conciliar cuentas del día','Verificar documentos KYC de 12 clientes','Procesar facturas del proveedor','Capturar datos de formularios de apertura','Generar reporte diario de transacciones','Evaluar solicitud de crédito atípica','Revisar alerta de posible fraude','Asesorar a cliente sobre nuevo producto']},
+ en:{sub:'Future of Work · Banking & finance: AI decides who does each task',inTitle:'Task desk',ph:'Describe a back-office task (e.g. reconcile today\u2019s accounts)…',go:'Analyze with AI',batch:'Load sample batch',hint:'Drag to rotate',humanNote:'Sensitive decisions (approving credit, flagging fraud) are always made by a person.',mTitle:'Session metrics',lR:'tasks done by robots',lA:'tasks for the analyst',lH:'hours freed',lP:'of work automated',lL:'Analyst load',logTitle:'AI decisions',empty:'No tasks yet. Type one or load the sample batch.',robot:'Robot',analyst:'Analyst',via:{gemini:'Gemini',rules:'rules'},min:'min',err:'Could not analyze the task.',wait:'Analyzing…',stageRobot:'AI robots',stageHuman:'Analyst decides',
+  samples:['Reconcile today\u2019s accounts','Verify KYC documents for 12 customers','Process supplier invoices','Enter data from account-opening forms','Generate daily transaction report','Assess unusual credit application','Review possible fraud alert','Advise client on a new product']}
+};
+var lang=(navigator.language||'es').slice(0,2)==='en'?'en':'es';
+var $=function(id){return document.getElementById(id);};
+var st={r:0,a:0,min:0,load:0};
+
+function setText(){
+  var t=T[lang];document.documentElement.lang=lang;$('lang').value=lang;
+  $('sub').textContent=t.sub;$('inTitle').textContent=t.inTitle;$('task').placeholder=t.ph;$('go').textContent=t.go;$('batch').textContent=t.batch;
+  $('humanNote').textContent=t.humanNote;$('mTitle').textContent=t.mTitle;$('lR').textContent=t.lR;$('lA').textContent=t.lA;$('lH').textContent=t.lH;$('lP').textContent=t.lP;$('lL').textContent=t.lL;
+  $('logTitle').textContent=t.logTitle;$('empty').textContent=t.empty;$('stageHint').textContent=t.hint;
+  var ch=$('chips');ch.textContent='';
+  t.samples.forEach(function(s){var b=document.createElement('button');b.className='chip';b.type='button';b.textContent=s;b.onclick=function(){$('task').value=s;};ch.appendChild(b);});
+  if(window.Scene)Scene.setLabels(t.stageRobot,t.stageHuman);
+}
+function metrics(){
+  $('mR').textContent=st.r;$('mA').textContent=st.a;$('mH').textContent=(st.min/60).toFixed(1);
+  var tot=st.r+st.a;$('mP').textContent=tot?Math.round(st.r/tot*100)+'%':'0%';
+  var b=$('loadBar');b.style.width=Math.round(st.load*100)+'%';b.style.background=st.load>0.7?'#d93a3a':(st.load>0.4?'#e8a317':'#0f9d8a');
+}
+function addLog(name,res){
+  $('empty').style.display='none';
+  var t=T[lang],li=document.createElement('li'),b=document.createElement('span'),n=document.createElement('strong'),s=document.createElement('span'),w=document.createElement('div');
+  b.className='badge '+res.owner;b.textContent=t[res.owner];
+  n.textContent=name;
+  s.className='src';s.textContent=(t.via[res.source]||res.source)+' · '+res.minutes+' '+t.min;
+  w.className='why';w.textContent=(res.category?res.category+': ':'')+res.reason;
+  li.appendChild(b);li.appendChild(n);li.appendChild(s);li.appendChild(w);
+  $('log').insertBefore(li,$('log').firstChild);
+}
+function apply(name,res){
+  if(res.owner==='robot'){st.r++;st.min+=res.minutes;}else{st.a++;st.load=Math.min(1,st.load+0.18);}
+  metrics();addLog(name,res);Scene.spawn(name,res.owner);
+}
+async function classify(name){
+  var r=await fetch('/api/classify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:name,language:lang})});
+  if(!r.ok)throw new Error('http '+r.status);
+  return r.json();
+}
+async function run(name){
+  var res=await classify(name);apply(name,res);
+}
+$('go').onclick=async function(){
+  var v=$('task').value.trim();if(!v)return;
+  var b=$('go');b.disabled=true;b.textContent=T[lang].wait;
+  try{await run(v);$('task').value='';}catch(e){alert(T[lang].err);}
+  b.disabled=false;b.textContent=T[lang].go;
+};
+$('task').addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))$('go').click();});
+$('batch').onclick=async function(){
+  var b=$('batch');b.disabled=true;
+  var list=T[lang].samples.slice();
+  for(var i=0;i<list.length;i++){try{await run(list[i]);}catch(e){}await new Promise(function(r){setTimeout(r,500);});}
+  b.disabled=false;
+};
+$('lang').onchange=function(){lang=this.value;setText();};
+setInterval(function(){st.load=Math.max(0,st.load-0.01);metrics();},1000);
+
+/* ---------- Escena 3D ---------- */
+var box=$('stage');
+var renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));box.appendChild(renderer.domElement);
+var scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0a161c,18,45);
+var camera=new THREE.PerspectiveCamera(45,1,0.1,100);
+var ang=0.7,elev=6.5,rad=16;
+function resize(){var w=box.clientWidth,h=box.clientHeight||460;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();rad=w<600?22:16;}
+window.addEventListener('resize',resize);
+scene.add(new THREE.AmbientLight(0x88a6b5,0.75));
+var sun=new THREE.DirectionalLight(0xffffff,0.8);sun.position.set(6,10,5);scene.add(sun);
+var pl=new THREE.PointLight(0x2de2c0,1.1,18);pl.position.set(4,4,3);scene.add(pl);
+var pr=new THREE.PointLight(0x4f8bff,1.2,18);pr.position.set(5,4,-3);scene.add(pr);
+function mat(c,e,ei){var m=new THREE.MeshStandardMaterial({color:c,roughness:0.45,metalness:0.35});if(e!==undefined){m.emissive=new THREE.Color(e);m.emissiveIntensity=ei||1;}return m;}
+function glow(c,o){return new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false});}
+function labelSprite(text,color){var c=document.createElement('canvas');c.width=256;c.height=64;var g=c.getContext('2d');g.fillStyle='rgba(10,22,28,0.8)';g.fillRect(0,0,256,64);g.strokeStyle=color;g.lineWidth=3;g.strokeRect(2,2,252,60);g.fillStyle=color;g.font='bold 28px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text,128,34);var s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true}));s.scale.set(2.4,0.6,1);return s;}
+var floor=new THREE.Mesh(new THREE.CylinderGeometry(10,10,0.2,64),mat(0x14303c));floor.position.y=-0.1;scene.add(floor);
+var grid=new THREE.GridHelper(20,20,0x2de2c0,0x1f4a57);grid.position.y=0.01;scene.add(grid);
+var ring=new THREE.Mesh(new THREE.TorusGeometry(10,0.06,8,96),glow(0x2de2c0,0.6));ring.rotation.x=Math.PI/2;scene.add(ring);
+var belt=new THREE.Mesh(new THREE.BoxGeometry(8,0.14,1),mat(0x2b3f49));belt.position.set(-3,0.07,0);scene.add(belt);
+var stripes=[];for(var k=0;k<10;k++){var sm=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.02,0.9),new THREE.MeshBasicMaterial({color:0x3f6070}));sm.position.set(-7+k*0.8,0.15,0);scene.add(sm);stripes.push(sm);}
+var drone=new THREE.Group();drone.position.set(-3,2.4,0);
+var dRing=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.05,8,32),mat(0x2de2c0,0x2de2c0,1.2));dRing.rotation.x=Math.PI/2;
+drone.add(new THREE.Mesh(new THREE.SphereGeometry(0.35,20,20),mat(0xe0f7fa,0x2de2c0,0.4)),dRing,(function(){var b=new THREE.Mesh(new THREE.ConeGeometry(0.6,2.2,24,1,true),glow(0x2de2c0,0.15));b.position.y=-1.3;return b;})());scene.add(drone);
+function makeRobot(x,z,col){
+  var g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=-Math.PI/2.6;
+  var halo=new THREE.Mesh(new THREE.TorusGeometry(0.85,0.05,8,32),glow(col,0.8));halo.rotation.x=Math.PI/2;halo.position.y=0.27;
+  var torso=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.65,1.2,20),mat(col));torso.position.y=0.95;
+  var head=new THREE.Mesh(new THREE.SphereGeometry(0.48,24,20),mat(0xeceff1));head.position.y=2.1;head.scale.set(1,0.85,0.95);
+  var visor=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.28,0.3),mat(0x0b1418,0x00e5ff,0.3));visor.position.set(0,2.1,0.32);
+  var eL=new THREE.Mesh(new THREE.SphereGeometry(0.075,10,10),new THREE.MeshBasicMaterial({color:0x00ffe0}));eL.position.set(-0.17,2.1,0.48);var eR=eL.clone();eR.position.x=0.17;
+  var tip=new THREE.Mesh(new THREE.SphereGeometry(0.1,12,12),new THREE.MeshBasicMaterial({color:0xff5252}));tip.position.y=3;
+  var ant=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.4,8),mat(0x90a4ae));ant.position.y=2.75;
+  function arm(sx){var p=new THREE.Group();p.position.set(sx*0.7,1.45,0);var u=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.1,0.7,10),mat(0x90a4ae));u.position.y=-0.35;var h=new THREE.Mesh(new THREE.SphereGeometry(0.15,12,12),mat(0xeceff1,0x00e5ff,0.3));h.position.y=-0.78;p.add(u,h);return p;}
+  var aL=arm(-1),aR=arm(1);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.75,0.9,0.25,24),mat(0x37474f)),halo,torso,head,visor,eL,eR,ant,tip,aL,aR);
+  g.children[0].position.y=0.12;
+  g.userData={aL:aL,aR:aR,tip:tip,halo:halo,head:head,work:0,ph:Math.random()*6};scene.add(g);return g;
+}
+var robots=[makeRobot(4.2,-2.2,0x2b6cff),makeRobot(6.4,-3.4,0x4f8bff),makeRobot(2.2,-3.6,0x1f4fd1)];
+var rl=labelSprite('Robots IA','#4f8bff');rl.position.set(4.2,4,-3);scene.add(rl);
+var human=new THREE.Group();human.position.set(4.2,0,3);
+var hBody=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.55,1.3,20),mat(0x2de2c0));hBody.position.y=0.95;
+var hHead=new THREE.Mesh(new THREE.SphereGeometry(0.38,20,20),mat(0xffcc99));hHead.position.y=1.95;
+var hair=new THREE.Mesh(new THREE.SphereGeometry(0.4,20,20,0,6.28,0,1.5),mat(0x3e2723));hair.position.y=1.98;
+var desk=new THREE.Mesh(new THREE.BoxGeometry(2,0.1,1),mat(0x6d4c41));desk.position.set(-1.3,0.9,0);
+var dk2=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.9,0.8),mat(0x3e2f2a));dk2.position.set(-1.3,0.45,0);
+var screen=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.55,0.05),mat(0x102027,0xffb300,0.9));screen.position.set(-1.6,1.4,-0.2);
+function harm(sx){var p=new THREE.Group();p.position.set(sx*0.55,1.45,0);var a=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.08,0.7,10),mat(0x1fb89b));a.position.y=-0.35;p.add(a);return p;}
+var hAL=harm(-1),hAR=harm(1);human.add(hBody,hHead,hair,hAL,hAR,desk,dk2,screen);scene.add(human);
+var hl=labelSprite('Analista decide','#2de2c0');hl.position.set(4.2,3.2,3);scene.add(hl);
+var tex={};
+function nameSprite(txt,warm){var key=txt+warm;if(!tex[key]){var c=document.createElement('canvas');c.width=320;c.height=56;var g=c.getContext('2d');g.fillStyle=warm?'rgba(5,50,45,0.9)':'rgba(10,30,70,0.9)';g.fillRect(0,0,320,56);g.strokeStyle=warm?'#2de2c0':'#6ea0ff';g.lineWidth=3;g.strokeRect(2,2,316,52);g.fillStyle='#fff';g.font='bold 24px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(txt.length>24?txt.slice(0,23)+'…':txt,160,30);tex[key]=new THREE.CanvasTexture(c);}var s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex[key],transparent:true}));s.scale.set(2.1,0.37,1);return s;}
+var tasks=[],ideas=[],rr=0,hLoad=0;
+var P0=new THREE.Vector3(-7,0.6,0),P1=new THREE.Vector3(0,0.6,0);
+window.Scene={
+  spawn:function(name,owner){
+    var rob=owner==='robot';
+    var m=new THREE.Mesh(rob?new THREE.BoxGeometry(0.5,0.5,0.5):new THREE.IcosahedronGeometry(0.36,0),rob?mat(0x6ea0ff,0x2b6cff,0.5):mat(0x2de2c0,0x0f9d8a,0.8));
+    m.position.copy(P0);scene.add(m);var sp=nameSprite(name,!rob);scene.add(sp);
+    tasks.push({m:m,sp:sp,rob:rob,ri:rob?(rr++%robots.length):0,t:0});
+    if(rob===false)hLoad=Math.min(1,hLoad+0.15);
+  },
+  setLabels:function(a,b){scene.remove(rl);scene.remove(hl);rl=labelSprite(a,'#4f8bff');rl.position.set(4.2,4,-3);scene.add(rl);hl=labelSprite(b,'#2de2c0');hl.position.set(4.2,3.2,3);scene.add(hl);}
+};
+function step(dt,time){
+  stripes.forEach(function(s){s.position.x+=dt*1.2;if(s.position.x>1)s.position.x=-7;});
+  drone.position.y=2.4+Math.sin(time*2)*0.15;dRing.rotation.z+=dt*3;
+  for(var i=tasks.length-1;i>=0;i--){
+    var k=tasks[i];k.t+=dt*0.25;
+    var tg=k.rob?new THREE.Vector3(robots[k.ri].position.x-0.6,1.3,robots[k.ri].position.z+0.6):new THREE.Vector3(4.2,1.4,3);
+    if(k.t<0.5)k.m.position.lerpVectors(P0,P1,k.t*2);else{k.m.position.lerpVectors(P1,tg,(k.t-0.5)*2);k.m.position.y+=Math.sin((k.t-0.5)*Math.PI*2)*0.5;}
+    k.m.rotation.y+=dt*2.5;k.m.rotation.x+=dt*1.2;k.sp.position.set(k.m.position.x,k.m.position.y+0.8,k.m.position.z);
+    if(k.t>=1){scene.remove(k.m);scene.remove(k.sp);tasks.splice(i,1);
+      if(k.rob)robots[k.ri].userData.work=1;
+      else{var s=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,10),new THREE.MeshBasicMaterial({color:0xfff176}));s.position.set(4.2,2.6,3);scene.add(s);ideas.push({m:s,life:1.6});}}
+  }
+  for(var j=ideas.length-1;j>=0;j--){var d=ideas[j];d.life-=dt;d.m.position.y+=dt*1.3;d.m.scale.setScalar(Math.max(d.life/1.6,0.01));if(d.life<=0){scene.remove(d.m);ideas.splice(j,1);}}
+  robots.forEach(function(r){var u=r.userData;u.work=Math.max(0,u.work-dt*1.6);var w=u.work,ph=time*2+u.ph;
+    u.aL.rotation.x=-w*1.4*Math.abs(Math.sin(ph*3));u.aR.rotation.x=-w*1.4*Math.abs(Math.cos(ph*3));u.head.rotation.y=Math.sin(ph*0.7)*0.3;
+    r.position.y=Math.sin(ph)*0.03+w*0.08;u.halo.material.opacity=0.5+w*0.5;u.tip.material.color.setHex(Math.sin(time*8+u.ph)>0?0xff5252:0x7f1d1d);});
+  hLoad=Math.max(0,hLoad-dt*0.05);
+  hBody.material.color.copy(new THREE.Color(0x2de2c0).lerp(new THREE.Color(0xe53935),hLoad));
+  hAL.rotation.x=-0.9+Math.sin(time*9)*0.15;hAR.rotation.x=-0.9+Math.cos(time*9)*0.15;
+  screen.material.emissiveIntensity=0.6+0.4*Math.sin(time*3);ring.material.opacity=0.45+0.2*Math.sin(time*2);
+}
+var drag=false,lx=0;
+renderer.domElement.addEventListener('pointerdown',function(e){drag=true;lx=e.clientX;});
+window.addEventListener('pointerup',function(){drag=false;});
+window.addEventListener('pointermove',function(e){if(drag){ang-=(e.clientX-lx)*0.008;lx=e.clientX;}});
+var last=performance.now(),t0=last;
+function loop(now){var dt=Math.min((now-last)/1000,0.05);last=now;if(!drag)ang+=dt*0.08;
+  camera.position.set(Math.sin(ang)*rad,elev,Math.cos(ang)*rad);camera.lookAt(2,1.2,0);step(dt,(now-t0)/1000);renderer.render(scene,camera);requestAnimationFrame(loop);}
+resize();setText();metrics();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
